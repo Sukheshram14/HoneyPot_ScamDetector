@@ -17,13 +17,40 @@ const { encrypt, decrypt } = require('./services/encryption');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-
+// Middleware (Enhanced for Debugging)
+// 1. Log Raw Request immediately
 app.use((req, res, next) => {
-    console.log(`[HTTP] ${req.method} ${req.url}`);
+    console.log(`\n--- [${new Date().toISOString()}] Incoming Request ---`);
+    console.log(`Method: ${req.method}`);
+    console.log(`URL: ${req.url}`);
+    console.log(`Headers:`, JSON.stringify(req.headers, null, 2));
     next();
+});
+
+// 2. Permissive CORS for Debugging
+app.use(cors({
+    origin: '*', // ALLOW ALL ORIGINS FOR DEBUGGING
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'x-api-key', 'ngrok-skip-browser-warning']
+}));
+
+// 3. Body Parser with Explicit Error Handling
+app.use((req, res, next) => {
+    bodyParser.json()(req, res, (err) => {
+        if (err) {
+            console.error("!!! JSON PARSE ERROR !!!", err.message);
+            console.error("Raw Body Attempted:", req.body); // Might be undefined if parse failed completely
+            return res.status(400).json({ 
+                status: "error", 
+                message: "Invalid JSON format in request body", 
+                details: err.message 
+            });
+        }
+        
+        // Log Parsed Body
+        console.log("Parsed Body:", JSON.stringify(req.body, null, 2));
+        next();
+    });
 });
 
 // Simple In-Memory Session Store
@@ -199,6 +226,7 @@ app.post('/api/chat', authenticate, async (req, res) => {
         sessionData.lastInteraction = new Date();
 
         // 6. Response - STRICTLY matching Spec Section 8 (SENT IMMEDIATELY)
+        console.log(`[Response] Sending Reply: "${replyText}"`); // Explicit Console Log
         res.json({
             status: "success",
             reply: replyText 
@@ -209,19 +237,24 @@ app.post('/api/chat', authenticate, async (req, res) => {
             try {
                 // Mandatory Final Result Callback
                 if (sessionData.scamDetected) {
-                     await reportFinalResult({
+                     const reportPayload = {
                         sessionId: sessionId,
                         scamDetected: true,
                         totalMessagesExchanged: sessionData.conversationHistory.length,
                         extractedIntelligence: sessionData.extractedIntelligence,
                         agentNotes: sessionData.agentNotes
-                    });
+                    };
+                    
+                    console.log("[Background] Reporting Payload:", JSON.stringify(reportPayload, null, 2));
+
+                    await reportFinalResult(reportPayload);
                 }
 
                 // Save to MongoDB
                 console.log(`[DB] Final Save for session: ${sessionId}`);
                 await sessionData.save();
             } catch (bgError) {
+                console.error(`[Background Error]`, bgError);
                 logToClients('error', `Background task failed: ${bgError.message}`);
             }
         })();

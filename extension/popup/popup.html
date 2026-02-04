@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HoneyPot AI</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <span class="icon">🍯</span>
+                <h1>HoneyPot AI</h1>
+            </div>
+            <div class="status-badge" id="connectionStatus">
+                <span class="dot"></span>
+                <span class="text">Disconnected</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="stats-card">
+                <div class="stat-item">
+                    <span class="label">Scams Blocked</span>
+                    <span class="value" id="scamsDetected">0</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="label">Scanned</span>
+                    <span class="value" id="messagesScanned">0</span>
+                </div>
+            </div>
+
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="extensionToggle" checked>
+                    <span class="slider round"></span>
+                </label>
+                <div class="toggle-text">
+                    <span class="toggle-label">Active Protection</span>
+                    <span class="toggle-desc">Scan messages for threats</span>
+                </div>
+            </div>
+
+            <div class="toggle-container">
+                <label class="switch">
+                    <input type="checkbox" id="autoModeToggle">
+                    <span class="slider round warning-slider"></span>
+                </label>
+                <div class="toggle-text">
+                    <span class="toggle-label">Automatic Mode</span>
+                    <span class="toggle-desc">AI replies to scammers</span>
+                </div>
+            </div>
+
+            <div id="alertBox" class="alert-box hidden">
+                <span class="alert-icon">⚠️</span>
+                <p class="alert-text">High risk activity detected!</p>
+            </div>
+        </main>
+
+        <footer>
+            <button id="settingsBtn" class="outline-btn">Settings</button>
+            <button id="reportBtn" class="primary-btn">Report Manual</button>
+        </footer>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="apiUrl">Backend API URL</label>
+                        <input type="text" id="apiUrl" value="http://localhost:3000">
+                    </div>
+                    <div class="form-group">
+                        <label for="apiKey">API Key</label>
+                        <input type="password" id="apiKey" placeholder="Enter API Key">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="personaSelect">AI Persona</label>
+                        <select id="personaSelect" class="form-select">
+                            <option value="default">Default (Helpful)</option>
+                            <option value="naive_elderly">Naive Elderly</option>
+                            <option value="busy_professional">Busy Professional</option>
+                            <option value="sarcastic_techie">Sarcastic Techie</option>
+                        </select>
+                        <small class="form-hint">Changes how the AI talks to scammers</small>
+                    </div>
+
+                    <button id="saveSettings" class="full-btn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="../utils.js"></script>
+    <script src="../report-generator.js"></script>
+    <script src="popup.js"></script>
+</body>
+
+</html>
