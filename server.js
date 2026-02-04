@@ -90,8 +90,20 @@ const authenticate = (req, res, next) => {
 // Apply Auth to specific routes
 app.post('/api/chat', authenticate, async (req, res) => {
     try {
-        const { message, conversationHistory, sessionId, metadata } = req.body;
-        if (!sessionId || !message) return res.status(400).json({ status: "error", message: "Invalid payload" });
+        let { message, conversationHistory, sessionId, metadata } = req.body;
+        
+        // Robustness: Handle sessionId missing
+        sessionId = sessionId || `anon-${Date.now()}`;
+
+        // Robustness: Handle message being a string instead of an object
+        if (typeof message === 'string') {
+            message = { text: message, sender: 'scammer', timestamp: new Date().toISOString() };
+        }
+
+        if (!message || (!message.text && typeof message !== 'string')) {
+            console.error("!!! INVALID PAYLOAD !!!", req.body);
+            return res.status(400).json({ status: "error", message: "Invalid payload: message.text is required" });
+        }
 
         logToClients('info', `[${sessionId}] Incoming: "${message.text ? message.text.substring(0, 50) : 'No text'}..."`);
 
@@ -111,7 +123,8 @@ app.post('/api/chat', authenticate, async (req, res) => {
         }
 
         // 2. Regex Extraction (Fast Pass)
-        const regexIntel = extractIntelligence(message.text);
+        const textToAnalyze = message.text || "";
+        const regexIntel = extractIntelligence(textToAnalyze);
         session.extractedIntelligence = aggregateIntelligence(session.extractedIntelligence, regexIntel);
 
         // Log extraction details
@@ -121,7 +134,7 @@ app.post('/api/chat', authenticate, async (req, res) => {
         }
 
         // 3. Deep Analysis (LLM - Scoring & Decision)
-        const detailedAnalysis = await detectScam(message.text, conversationHistory || []);
+        const detailedAnalysis = await detectScam(textToAnalyze, conversationHistory || []);
         
         // Log detailed decision
         logToClients('info', `[${sessionId}] Analysis: Score=${detailedAnalysis.maliciousness_score}, Decision=${detailedAnalysis.decision}`);
@@ -155,6 +168,11 @@ app.post('/api/chat', authenticate, async (req, res) => {
                 scamConfidence: session.metrics.score
             });
 
+            // Sanitization: Remove quotes if LLM accidentally included them
+            if (replyText) {
+                replyText = replyText.replace(/^["']|["']$/g, '').trim();
+            }
+
             logToClients('info', `[${sessionId}] Reply: "${replyText}"`);
         } else {
             logToClients('info', `[${sessionId}] Monitoring Mode: No intervention (Score: ${session.metrics.score})`);
@@ -184,7 +202,7 @@ app.post('/api/chat', authenticate, async (req, res) => {
         console.log(`[Response] Sending Reply: "${replyText}"`);
         res.json({
             status: "success",
-            reply: replyText 
+            reply: replyText || "" // Ensure it's never null
         });
 
     } catch (error) {
