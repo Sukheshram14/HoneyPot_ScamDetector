@@ -181,26 +181,33 @@ app.post('/api/chat', authenticate, async (req, res) => {
         sessionData.agentNotes = `${sessionData.metrics.reason} [Score: ${sessionData.metrics.score}]`;
         sessionData.lastInteraction = new Date();
 
-        // 5. Mandatory Final Result Callback
-        if (sessionData.scamDetected) {
-             reportFinalResult({
-                sessionId: sessionId,
-                scamDetected: true,
-                totalMessagesExchanged: sessionData.conversationHistory.length,
-                extractedIntelligence: sessionData.extractedIntelligence,
-                agentNotes: sessionData.agentNotes
-            }).catch(e => logToClients('error', `Reporting failed: ${e.message}`));
-        }
-
-        // Save to MongoDB
-        console.log(`[DB] Final Save for session: ${sessionId}`);
-        await sessionData.save();
-
-        // 6. Response - STRICTLY matching Spec Section 8
+        // 6. Response - STRICTLY matching Spec Section 8 (SENT IMMEDIATELY)
         res.json({
             status: "success",
             reply: replyText 
         });
+
+        // 7. Background Tasks (Fire-and-Forget)
+        (async () => {
+            try {
+                // Mandatory Final Result Callback
+                if (sessionData.scamDetected) {
+                     await reportFinalResult({
+                        sessionId: sessionId,
+                        scamDetected: true,
+                        totalMessagesExchanged: sessionData.conversationHistory.length,
+                        extractedIntelligence: sessionData.extractedIntelligence,
+                        agentNotes: sessionData.agentNotes
+                    });
+                }
+
+                // Save to MongoDB
+                console.log(`[DB] Final Save for session: ${sessionId}`);
+                await sessionData.save();
+            } catch (bgError) {
+                logToClients('error', `Background task failed: ${bgError.message}`);
+            }
+        })();
 
     } catch (error) {
         logToClients('error', `Error processing request: ${error.message}`);
